@@ -6,24 +6,48 @@ import (
 	"github.com/deosjr/Pathfinding/path"
 )
 
+type Instantiate func() Building
+
 type Updatable interface {
 	CanUpdate(time.Time) bool
 	Update()
 }
 
+type updatable struct {
+	timestamp time.Time
+}
+
+func (u updatable) CanUpdate(t time.Time) bool {
+	return t.After(u.timestamp)
+}
+
 type Building interface {
-	WhenPlaced(coord)
+	WhenPlaced(loc coord) (upd []Updatable, dyn []Updatable)
+	GetLoc() coord
+}
+
+type building struct {
+	loc coord
+}
+
+func (b building) GetLoc() coord {
+	return b.loc
 }
 
 type producer struct {
-	timestamp time.Time
-	loaded    bool
-	loc       coord
+	updatable
+	building
+	loaded bool
 }
 
-func (p *producer) WhenPlaced(loc coord) {
+func NewProducer() Building {
+	return &producer{}
+}
+
+func (p *producer) WhenPlaced(loc coord) ([]Updatable, []Updatable) {
 	p.timestamp = time.Now()
 	p.loc = loc
+	return []Updatable{p}, nil
 }
 
 func (p *producer) CanUpdate(t time.Time) bool {
@@ -35,23 +59,31 @@ func (p *producer) CanUpdate(t time.Time) bool {
 
 func (p *producer) Update() {
 	p.loaded = true
-	tasks = append(tasks, &task{home: p, location: p.loc})
+	tasks = append(tasks, &task{dest: p})
+	// TODO: timer should start from moment loaded=false instead
 	dt := 30 * time.Second
 	p.timestamp = time.Now().Add(dt)
 }
 
 type consumer struct {
+	building
 	unit *gatherer
-	loc  coord
 }
 
-func (c *consumer) WhenPlaced(loc coord) {
+func NewConsumer() Building {
+	return &consumer{}
+}
+
+func (c *consumer) WhenPlaced(loc coord) ([]Updatable, []Updatable) {
 	c.loc = loc
 	c.unit = &gatherer{
-		timestamp: time.Now(),
-		home:      c,
-		loc:       loc,
+		updatable: updatable{
+			timestamp: time.Now(),
+		},
+		home: c,
+		loc:  loc,
 	}
+	return []Updatable{c.unit}, []Updatable{c.unit}
 }
 
 type Unit interface {
@@ -59,14 +91,10 @@ type Unit interface {
 }
 
 type gatherer struct {
-	timestamp time.Time
-	task      Task
-	home      Building
-	loc       coord
-}
-
-func (g *gatherer) CanUpdate(t time.Time) bool {
-	return t.After(g.timestamp)
+	updatable
+	task Task
+	home Building
+	loc  coord
 }
 
 func (g *gatherer) Update() {
@@ -79,7 +107,7 @@ func (g *gatherer) Update() {
 	if g.task == nil {
 		return
 	}
-	route, err := path.FindRoute(roads, g.loc, g.task.GetLoc())
+	route, err := path.FindRoute(roads, g.loc, g.task.GetDestination().GetLoc())
 	if err != nil {
 		tasks = append(tasks, g.task)
 		g.task = nil
@@ -92,15 +120,16 @@ func (g *gatherer) Update() {
 		next = route[len(route)-2].(coord)
 	}
 	g.loc = next
-	if g.loc == g.task.GetLoc() && g.loc != g.home.(*consumer).loc {
+	if g.loc == g.task.GetDestination().GetLoc() {
+		if g.loc == g.home.GetLoc() {
+			// return trip finished
+			g.task = nil
+			return
+		}
 		// destination reached
-		g.task.GetHome().(*producer).loaded = false
-		g.task = &task{location: g.home.(*consumer).loc}
+		g.task.GetDestination().(*producer).loaded = false
+		g.task = &task{dest: g.home}
 		return
-	}
-	if g.loc == g.home.(*consumer).loc && g.task.GetLoc() == g.home.(*consumer).loc {
-		// return trip finished
-		g.task = nil
 	}
 }
 
@@ -109,20 +138,13 @@ func (g *gatherer) GetLoc() coord {
 }
 
 type Task interface {
-	GetHome() Building
-	GetLoc() coord
+	GetDestination() Building
 }
 
-// get vs return tasks as types?
 type task struct {
-	home     Building
-	location coord
+	dest Building
 }
 
-func (t *task) GetLoc() coord {
-	return t.location
-}
-
-func (t *task) GetHome() Building {
-	return t.home
+func (t *task) GetDestination() Building {
+	return t.dest
 }

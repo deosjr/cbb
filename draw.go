@@ -19,14 +19,6 @@ var (
 	roads   *TileMap
 )
 
-type option struct {
-	name         string
-	buildingtype string // building or road
-	radius       int    // 0 means no radius
-	key          pixelgl.Button
-	sprite       *pixel.Sprite
-}
-
 func run() {
 	cfg := pixelgl.WindowConfig{
 		Title:  "TILES",
@@ -48,29 +40,7 @@ func run() {
 	frames := 0
 	second := time.Tick(time.Second)
 
-	var options = []option{
-		{
-			name:         "road",
-			buildingtype: "road",
-			radius:       0,
-			key:          pixelgl.KeyR,
-			sprite:       roadSprite,
-		},
-		{
-			name:         "producer",
-			buildingtype: "building",
-			radius:       4,
-			key:          pixelgl.KeyP,
-			sprite:       producerSprite,
-		},
-		{
-			name:         "consumer",
-			buildingtype: "building",
-			radius:       10,
-			key:          pixelgl.KeyC,
-			sprite:       consumerSprite,
-		},
-	}
+	options := getOptions()
 
 	var (
 		start, end *coord
@@ -111,7 +81,7 @@ func run() {
 		mouseTilePos := tileCoord(mousepos)
 		if win.JustPressed(pixelgl.MouseButtonLeft) {
 			if t, ok := tilemap.tiles[mouseTilePos]; ok && t.passable {
-				switch selection.name {
+				switch selection.buildingtype {
 				case "road":
 					switch {
 					case start == nil:
@@ -132,18 +102,16 @@ func run() {
 							}
 						}
 					}
-				case "producer":
-					drawTile(batch2, mouseTilePos, producerSprite)
-					obj := &producer{}
-					obj.WhenPlaced(mouseTilePos)
-					updatables = append(updatables, obj)
-					roads.tiles[mouseTilePos] = tile{passable: true}
-				case "consumer":
-					drawTile(batch2, mouseTilePos, consumerSprite)
-					obj := &consumer{}
-					obj.WhenPlaced(mouseTilePos)
-					updatables = append(updatables, obj.unit)
-					dynamicDraws = append(dynamicDraws, obj.unit)
+				case "building":
+					drawTile(batch2, mouseTilePos, selection.sprite)
+					obj := selection.newfunc()
+					upd, dyn := obj.WhenPlaced(mouseTilePos)
+					for _, u := range upd {
+						updatables = append(updatables, u)
+					}
+					for _, d := range dyn {
+						dynamicDraws = append(dynamicDraws, d)
+					}
 					roads.tiles[mouseTilePos] = tile{passable: true}
 				}
 			}
@@ -186,32 +154,12 @@ func run() {
 		batch2.Draw(win)
 		if mousepos != win.MousePreviousPosition() {
 			batch3.Clear()
-			highlightsprite := selection.sprite
 			if selection.name == "road" && start != nil {
-				route, err := path.FindRoute(tilemap, *start, mouseTilePos)
-				if err == nil {
-					for _, n := range route {
-						c := n.(coord)
-						drawTile(batch3, c, highlightsprite)
-					}
-				}
+				drawRoadHighlight(*start, mouseTilePos, selection)
 			}
-			drawTile(batch3, mouseTilePos, highlightsprite)
+			drawTile(batch3, mouseTilePos, selection.sprite)
 			if selection.radius > 0 {
-				vec := bottomRightCornerVec(mouseTilePos)
-				radius := float64(selection.radius * resolution)
-				c := pixel.C(vec, radius)
-				//for y := vec.Y-radius+1; y < vec.Y+radius; y++{
-				//for x := vec.X-radius+1; x < vec.X+radius; x++{
-				for y := mouseTilePos.Y - radius; y <= mouseTilePos.Y+radius; y++ {
-					for x := mouseTilePos.X - radius; x <= mouseTilePos.X+radius; x++ {
-						check := coord(pixel.V(x, y))
-						if !c.Contains(middleVec(check)) {
-							continue
-						}
-						drawTile(batch3, check, highlightSprite)
-					}
-				}
+				drawRadiusHighlight(mouseTilePos, selection)
 			}
 		}
 		batch3.Draw(win)
@@ -236,4 +184,29 @@ func run() {
 // we print grid tiles at center but find coords by lefthandcorner
 func drawTile(target pixel.Target, c coord, sprite *pixel.Sprite) {
 	sprite.Draw(target, pixel.IM.Moved(middleVec(c)))
+}
+
+func drawRoadHighlight(start, mouseTilePos coord, selection option) {
+	route, err := path.FindRoute(tilemap, start, mouseTilePos)
+	if err == nil {
+		for _, n := range route {
+			c := n.(coord)
+			drawTile(batch3, c, selection.sprite)
+		}
+	}
+}
+
+func drawRadiusHighlight(mouseTilePos coord, selection option) {
+	vec := middleVec(mouseTilePos)
+	radius := float64(selection.radius)
+	c := pixel.C(vec, radius*float64(resolution)-1)
+	for y := mouseTilePos.Y - radius; y <= mouseTilePos.Y+radius; y++ {
+		for x := mouseTilePos.X - radius; x <= mouseTilePos.X+radius; x++ {
+			check := coord(pixel.V(x, y))
+			if !c.Contains(middleVec(check)) {
+				continue
+			}
+			drawTile(batch3, check, highlightSprite)
+		}
+	}
 }
