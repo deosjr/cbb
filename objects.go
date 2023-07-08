@@ -22,7 +22,8 @@ func (u updatable) CanUpdate(t time.Time) bool {
 }
 
 type Building interface {
-	WhenPlaced(loc coord) (upd []Updatable, dyn []Updatable)
+	Updatable
+	WhenPlaced(loc coord) []Unit
 	GetLoc() coord
 }
 
@@ -44,10 +45,10 @@ func NewProducer() Building {
 	return &producer{}
 }
 
-func (p *producer) WhenPlaced(loc coord) ([]Updatable, []Updatable) {
+func (p *producer) WhenPlaced(loc coord) []Unit {
 	p.timestamp = time.Now()
 	p.loc = loc
-	return []Updatable{p}, nil
+	return nil
 }
 
 func (p *producer) CanUpdate(t time.Time) bool {
@@ -74,7 +75,14 @@ func NewConsumer() Building {
 	return &consumer{}
 }
 
-func (c *consumer) WhenPlaced(loc coord) ([]Updatable, []Updatable) {
+// TODO: this feels hacky
+func (c *consumer) CanUpdate(time.Time) bool {
+	return false
+}
+
+func (c *consumer) Update() {}
+
+func (c *consumer) WhenPlaced(loc coord) []Unit {
 	c.loc = loc
 	c.unit = &gatherer{
 		updatable: updatable{
@@ -83,10 +91,11 @@ func (c *consumer) WhenPlaced(loc coord) ([]Updatable, []Updatable) {
 		home: c,
 		loc:  loc,
 	}
-	return []Updatable{c.unit}, []Updatable{c.unit}
+	return []Unit{c.unit}
 }
 
 type Unit interface {
+	Updatable
 	GetLoc() coord
 }
 

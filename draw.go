@@ -105,12 +105,11 @@ func run() {
 				case "building":
 					drawTile(batch2, mouseTilePos, selection.sprite)
 					obj := selection.newfunc()
-					upd, dyn := obj.WhenPlaced(mouseTilePos)
-					for _, u := range upd {
+					updatables = append(updatables, obj)
+					units := obj.WhenPlaced(mouseTilePos)
+					for _, u := range units {
 						updatables = append(updatables, u)
-					}
-					for _, d := range dyn {
-						dynamicDraws = append(dynamicDraws, d)
+						dynamicDraws = append(dynamicDraws, u)
 					}
 					roads.tiles[mouseTilePos] = tile{passable: true}
 				}
