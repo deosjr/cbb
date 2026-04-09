@@ -1,42 +1,32 @@
 package main
 
 import (
-	"github.com/faiface/pixel"
-	"github.com/faiface/pixel/pixelgl"
+	"github.com/deosjr/tiles/cbb"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
-type option struct {
-	name         string
-	buildingtype string // building or road
-	radius       int    // 0 means no radius
-	key          pixelgl.Button
-	sprite       *pixel.Sprite
-	newfunc      Instantiate
-}
-
-func getOptions() []option {
-	return []option{
+func getOptions() []cbb.Option {
+	return []cbb.Option{
 		{
-			name:         "road",
-			buildingtype: "road",
-			key:          pixelgl.KeyR,
-			sprite:       roadSprite,
+			Name: "road",
+			Kind: cbb.KindRoad,
+			Key:  ebiten.KeyR,
 		},
 		{
-			name:         "producer",
-			buildingtype: "building",
-			radius:       4,
-			key:          pixelgl.KeyP,
-			sprite:       producerSprite,
-			newfunc:      NewProducer,
+			Name:    "producer",
+			Kind:    cbb.KindBuilding,
+			Radius:  4,
+			Key:     ebiten.KeyP,
+			Sprite:  producerSprite,
+			NewFunc: NewProducer,
 		},
 		{
-			name:         "consumer",
-			buildingtype: "building",
-			radius:       10,
-			key:          pixelgl.KeyC,
-			sprite:       consumerSprite,
-			newfunc:      NewConsumer,
+			Name:    "consumer",
+			Kind:    cbb.KindBuilding,
+			Radius:  10,
+			Key:     ebiten.KeyC,
+			Sprite:  consumerSprite,
+			NewFunc: NewConsumer,
 		},
 	}
 }

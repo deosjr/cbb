@@ -1,10 +1,26 @@
 package main
 
 import (
-	"github.com/faiface/pixel/pixelgl"
+	"math/rand"
+
+	"github.com/deosjr/tiles/cbb"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 func main() {
-	loadSprites()
-	pixelgl.Run(run)
+	loadGameSprites()
+
+	m := map[cbb.Coord]cbb.Tile{}
+	for y := 0; y < 100; y++ {
+		for x := 0; x < 100; x++ {
+			m[cbb.Coord{X: float64(x), Y: float64(y)}] = cbb.Tile{Passable: rand.Float64() < 0.6}
+		}
+	}
+
+	game := cbb.NewGame(&cbb.TileMap{Tiles: m}, getOptions())
+	ebiten.SetWindowSize(cbb.ScreenW, cbb.ScreenH)
+	ebiten.SetWindowTitle("TILES")
+	if err := ebiten.RunGame(game); err != nil {
+		panic(err)
+	}
 }
