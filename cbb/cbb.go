@@ -55,10 +55,18 @@ type Unit interface {
 }
 
 // World is passed to Update and WhenPlaced, providing access to shared game state.
+// Games extend this by embedding BaseWorld in their own world struct.
 type World interface {
 	AddTask(Task)
 	ClaimTask() (Task, bool)
 	Roads() *TileMap
+	Tilemap() *TileMap
+}
+
+// Placeable is optionally implemented by buildings to restrict valid placement locations.
+// CanPlace is called before WhenPlaced; returning false blocks placement.
+type Placeable interface {
+	CanPlace(Coord, World) bool
 }
 
 // SelectionKind distinguishes tool types in the build menu.

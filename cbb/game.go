@@ -12,11 +12,11 @@ import (
 
 // Game is the main engine. Create it with NewGame and pass it to ebiten.RunGame.
 type Game struct {
-	world *world
+	world World
 
 	camPos       Coord
 	camSpeed     float64
-	camZoom      float64
+	CamZoom      float64
 	camZoomSpeed float64
 
 	options   []Option
@@ -34,27 +34,31 @@ type Game struct {
 	lastFPSUpdate time.Time
 }
 
-// NewGame initialises the engine with a tile map and a set of build options.
-// It must be called before ebiten.RunGame.
-func NewGame(tilemap *TileMap, options []Option) *Game {
+// NewGame initialises the engine with a world and a set of build options.
+// The world must embed BaseWorld or otherwise implement the World interface.
+// Call this before ebiten.RunGame.
+func NewGame(world World, options []Option) *Game {
+	tilemap := world.Tilemap()
 	mapW, mapH := mapDimensions(tilemap)
 	initSprites(mapW, mapH)
 
-	w := newWorld(tilemap)
-
 	for c, t := range tilemap.Tiles {
-		if t.Passable {
-			drawTileToBatch(tileBatch, c, passableSprite)
-		} else {
-			drawTileToBatch(tileBatch, c, impassableSprite)
+		sprite := t.Sprite
+		if sprite == nil {
+			if t.Passable {
+				sprite = passableSprite
+			} else {
+				sprite = impassableSprite
+			}
 		}
+		drawTileToBatch(tileBatch, c, sprite)
 	}
 
 	return &Game{
-		world:         w,
+		world:         world,
 		camPos:        Coord{float64(mapW*resolution) / 2, float64(mapH*resolution) / 2},
 		camSpeed:      500.0,
-		camZoom:       1.0,
+		CamZoom:       1.0,
 		camZoomSpeed:  1.2,
 		options:       options,
 		selection:     options[0],
@@ -71,7 +75,7 @@ func (g *Game) Update() error {
 		return ebiten.Termination
 	}
 
-	zoomScrollFactor := 1.0 / g.camZoom
+	zoomScrollFactor := 1.0 / g.CamZoom
 	if ebiten.IsKeyPressed(ebiten.KeyH) || ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		g.camPos.X -= g.camSpeed * zoomScrollFactor * dt
 	}
@@ -86,7 +90,7 @@ func (g *Game) Update() error {
 	}
 
 	_, wheelY := ebiten.Wheel()
-	g.camZoom *= math.Pow(g.camZoomSpeed, wheelY)
+	g.CamZoom *= math.Pow(g.camZoomSpeed, wheelY)
 
 	for _, o := range g.options {
 		if ebiten.IsKeyPressed(o.Key) {
@@ -102,7 +106,7 @@ func (g *Game) Update() error {
 	mouseTile := tileCoord(worldX, worldY)
 
 	if g.selection.Kind == KindRoad && g.start != nil && mouseTile != g.prevMouseTile {
-		route, err := FindRoute(g.world.tilemap, *g.start, mouseTile)
+		route, err := FindRoute(g.world.Tilemap(), *g.start, mouseTile)
 		if err == nil {
 			g.previewRoute = route
 		} else {
@@ -112,7 +116,7 @@ func (g *Game) Update() error {
 	}
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		if t, ok := g.world.tilemap.Tiles[mouseTile]; ok && t.Passable {
+		if t, ok := g.world.Tilemap().Tiles[mouseTile]; ok && t.Passable {
 			switch g.selection.Kind {
 			case KindRoad:
 				if g.start == nil {
@@ -120,21 +124,24 @@ func (g *Game) Update() error {
 					g.start = &start
 					g.previewRoute = nil
 				} else {
-					route, err := FindRoute(g.world.tilemap, *g.start, mouseTile)
+					route, err := FindRoute(g.world.Tilemap(), *g.start, mouseTile)
 					g.start = nil
 					g.previewRoute = nil
 					if err == nil {
 						for _, c := range route {
 							drawTileToBatch(tileBatch, c, roadSprite)
-							g.world.roads.Tiles[c] = Tile{Passable: true}
+							g.world.Roads().Tiles[c] = Tile{Passable: true}
 						}
 					}
 				}
 			case KindBuilding:
 				obj := g.selection.NewFunc()
+				if p, ok := obj.(Placeable); ok && !p.CanPlace(mouseTile, g.world) {
+					break
+				}
 				units := obj.WhenPlaced(mouseTile, g.world)
 				drawTileToBatch(buildingBatch, mouseTile, obj.Sprite())
-				g.world.roads.Tiles[mouseTile] = Tile{Passable: true}
+				g.world.Roads().Tiles[mouseTile] = Tile{Passable: true}
 				if u, ok := obj.(Updatable); ok {
 					g.updatables = append(g.updatables, u)
 				}
@@ -204,14 +211,14 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 func (g *Game) cameraGeoM() ebiten.GeoM {
 	var m ebiten.GeoM
 	m.Translate(-g.camPos.X, -g.camPos.Y)
-	m.Scale(g.camZoom, g.camZoom)
+	m.Scale(g.CamZoom, g.CamZoom)
 	m.Translate(float64(ScreenW)/2, float64(ScreenH)/2)
 	return m
 }
 
 func (g *Game) screenToWorld(sx, sy float64) (float64, float64) {
-	wx := (sx-float64(ScreenW)/2)/g.camZoom + g.camPos.X
-	wy := (sy-float64(ScreenH)/2)/g.camZoom + g.camPos.Y
+	wx := (sx-float64(ScreenW)/2)/g.CamZoom + g.camPos.X
+	wy := (sy-float64(ScreenH)/2)/g.CamZoom + g.camPos.Y
 	return wx, wy
 }
 

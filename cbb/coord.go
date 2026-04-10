@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/deosjr/Pathfinding/path"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // Coord is a tile grid position. X and Y are always integer-valued in practice.
@@ -14,6 +15,9 @@ type Coord struct {
 // Tile holds per-tile data.
 type Tile struct {
 	Passable bool
+	// Sprite overrides the default passable/impassable tile sprite for this tile.
+	// If nil, the library falls back to its built-in sprites.
+	Sprite *ebiten.Image
 }
 
 // TileMap is the world grid, and also implements path.Graph for A* pathfinding.
