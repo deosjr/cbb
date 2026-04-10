@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/deosjr/tiles/cbb"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
-// AnnoGame wraps cbb.Game to add the Anno-specific HUD.
+// AnnoGame wraps cbb.Game to overlay the Anno-specific HUD.
 type AnnoGame struct {
 	*cbb.Game
 	world *annoWorld
@@ -17,8 +18,15 @@ type AnnoGame struct {
 func (ag *AnnoGame) Draw(screen *ebiten.Image) {
 	ag.Game.Draw(screen)
 	ebitenutil.DebugPrint(screen, fmt.Sprintf(
-		"Gold: %d   Population: %d\nR=road  W=warehouse  T=woodcutter  F=fisherman  Y=house",
-		ag.world.gold, ag.world.population,
+		"Gold: %d   Population: %d\n"+
+			"Warehouse — Food:%d  Wood:%d  Wool:%d  Cloth:%d\n"+
+			"R=road  W=warehouse  F=fisherman  T=forester  U=hunter  S=sheep  V=weaver  Y=house",
+		ag.world.gold,
+		ag.world.population,
+		ag.world.warehouse.Count(Food),
+		ag.world.warehouse.Count(Wood),
+		ag.world.warehouse.Count(Wool),
+		ag.world.warehouse.Count(Cloth),
 	))
 }
 
@@ -27,11 +35,10 @@ func main() {
 
 	tilemap, terrain := generateMap(42)
 	world := newAnnoWorld(tilemap, terrain)
-	world.warehouse.Add(Wood, 10)
-	world.warehouse.Add(Fish, 10)
 
 	game := cbb.NewGame(world, getOptions(), true)
 	game.CamZoom = 0.5
+	game.AddUpdatable(&PopulationTick{ts: time.Now()})
 
 	ebiten.SetWindowSize(cbb.ScreenW, cbb.ScreenH)
 	ebiten.SetWindowTitle("Anno 1602")

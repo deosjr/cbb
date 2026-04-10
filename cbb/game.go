@@ -258,6 +258,13 @@ func sortedByDepth(units []Unit) []Unit {
 	return sorted
 }
 
+// AddUpdatable registers an Updatable that will be ticked each frame.
+// Use this at game startup to add world-level simulation objects (e.g. a
+// population ticker) that are not tied to a placed building.
+func (g *Game) AddUpdatable(u Updatable) {
+	g.updatables = append(g.updatables, u)
+}
+
 func mapDimensions(tm *TileMap) (w, h int) {
 	for c := range tm.Tiles {
 		if int(c.X)+1 > w {

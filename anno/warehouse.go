@@ -17,87 +17,116 @@ func (w *Warehouse) GetLoc() cbb.Coord     { return w.loc }
 func (w *Warehouse) Sprite() *ebiten.Image { return warehouseSprite }
 
 func (w *Warehouse) CanPlace(loc cbb.Coord, world cbb.World) bool {
-	aw := world.(*annoWorld)
-	return aw.terrainAt(loc) != Water
+	return world.(*annoWorld).terrainAt(loc) != Water
 }
 
 func (w *Warehouse) WhenPlaced(loc cbb.Coord, world cbb.World) []cbb.Unit {
 	w.loc = loc
 	aw := world.(*annoWorld)
 	aw.warehouseLoc = loc
-	return []cbb.Unit{&MarketCarrier{
-		loc:  loc,
-		home: loc,
-		ts:   time.Now(),
+	aw.warehousePlaced = true
+	return []cbb.Unit{&WarehouseCart{
+		loc:    loc,
+		home:   loc,
+		state:  wcIdle,
+		ts:     time.Now(),
+		sprite: carrierSprite,
 	}}
 }
 
-// MarketCarrier walks from the warehouse to houses that need goods and back.
-// It pathfinds on the road network, so houses must be connected by roads.
-type MarketCarrier struct {
-	loc       cbb.Coord
-	home      cbb.Coord
-	target    *SettlerHouse
-	route     []cbb.Coord
-	carryWood int
-	carryFish int
-	ts        time.Time
+// -------------------------------------------------------------------
+// WarehouseCart: roams the road network collecting goods from all
+// registered producers and returning them to the warehouse.
+// -------------------------------------------------------------------
+
+type wcState int
+
+const (
+	wcIdle       wcState = iota
+	wcToProducer         // heading to a producer to collect
+	wcToHome             // carrying goods back to warehouse
+)
+
+type WarehouseCart struct {
+	loc      cbb.Coord
+	home     cbb.Coord
+	route    []cbb.Coord
+	carrying map[Good]int
+	target   Producer
+	state    wcState
+	ts       time.Time
+	sprite   *ebiten.Image
 }
 
-func (c *MarketCarrier) GetLoc() cbb.Coord         { return c.loc }
-func (c *MarketCarrier) Sprite() *ebiten.Image     { return carrierSprite }
-func (c *MarketCarrier) CanUpdate(t time.Time) bool { return t.After(c.ts) }
+func (c *WarehouseCart) GetLoc() cbb.Coord         { return c.loc }
+func (c *WarehouseCart) Sprite() *ebiten.Image      { return c.sprite }
+func (c *WarehouseCart) CanUpdate(t time.Time) bool { return t.After(c.ts) }
 
-func (c *MarketCarrier) Update(world cbb.World) {
-	c.ts = time.Now().Add(time.Second / 2)
+func (c *WarehouseCart) Update(world cbb.World) {
+	c.ts = time.Now().Add(500 * time.Millisecond)
 	aw := world.(*annoWorld)
 
-	// Advance one step if moving
+	// Advance one step along the current route.
 	if len(c.route) > 1 {
 		c.loc = c.route[len(c.route)-2]
 		c.route = c.route[:len(c.route)-1]
 		return
 	}
 
-	// Arrived somewhere (or start)
-	if c.target != nil {
-		// Deliver to house
-		c.target.deliver(c.carryWood, c.carryFish)
-		c.carryWood, c.carryFish = 0, 0
-		c.target = nil
-		// Return to warehouse
-		if route, err := cbb.FindRoute(world.Roads(), c.loc, c.home); err == nil {
+	switch c.state {
+	case wcIdle:
+		// Find the first producer with goods that is reachable by road.
+		for _, p := range aw.producers {
+			hasGoods := false
+			for _, g := range AllGoods {
+				if p.Stockpile().Count(g) > 0 {
+					hasGoods = true
+					break
+				}
+			}
+			if !hasGoods {
+				continue
+			}
+			route, err := cbb.FindRoute(world.Roads(), c.loc, p.GetLoc())
+			if err != nil {
+				continue
+			}
 			c.route = route
-		}
-		return
-	}
-
-	// At warehouse: load up
-	c.carryWood, c.carryFish = 0, 0
-	if aw.warehouse.Take(Wood, 2) {
-		c.carryWood = 2
-	}
-	if aw.warehouse.Take(Fish, 2) {
-		c.carryFish = 2
-	}
-	if c.carryWood == 0 && c.carryFish == 0 {
-		return // nothing to deliver, wait
-	}
-
-	// Find nearest house that needs goods and is reachable by road
-	for _, house := range aw.houses {
-		if !house.needsDelivery() {
-			continue
-		}
-		if route, err := cbb.FindRoute(world.Roads(), c.loc, house.loc); err == nil {
-			c.route = route
-			c.target = house
+			c.target = p
+			c.state = wcToProducer
 			return
 		}
-	}
+		c.ts = time.Now().Add(2 * time.Second)
 
-	// No reachable needy house: return goods
-	aw.warehouse.Add(Wood, c.carryWood)
-	aw.warehouse.Add(Fish, c.carryFish)
-	c.carryWood, c.carryFish = 0, 0
+	case wcToProducer:
+		// Arrived at producer: collect everything in its stockpile.
+		if c.carrying == nil {
+			c.carrying = make(map[Good]int)
+		}
+		for _, g := range AllGoods {
+			n := c.target.Stockpile().Count(g)
+			if n > 0 {
+				c.target.Stockpile().Take(g, n)
+				c.carrying[g] += n
+			}
+		}
+		c.target = nil
+		route, err := cbb.FindRoute(world.Roads(), c.loc, c.home)
+		if err != nil {
+			c.state = wcIdle
+			return
+		}
+		c.route = route
+		c.state = wcToHome
+
+	case wcToHome:
+		// Arrived at warehouse: deposit all carried goods.
+		for g, n := range c.carrying {
+			if n > 0 {
+				aw.warehouse.Add(g, n)
+				c.carrying[g] = 0
+			}
+		}
+		c.state = wcIdle
+	}
 }
