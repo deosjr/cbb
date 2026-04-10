@@ -30,7 +30,7 @@ func main() {
 	world.warehouse.Add(Wood, 10)
 	world.warehouse.Add(Fish, 10)
 
-	game := cbb.NewGame(world, getOptions())
+	game := cbb.NewGame(world, getOptions(), true)
 	game.CamZoom = 0.5
 
 	ebiten.SetWindowSize(cbb.ScreenW, cbb.ScreenH)

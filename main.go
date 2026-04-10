@@ -18,7 +18,7 @@ func main() {
 	}
 
 	world := cbb.NewBaseWorld(&cbb.TileMap{Tiles: m})
-	game := cbb.NewGame(world, getOptions())
+	game := cbb.NewGame(world, getOptions(), false)
 	ebiten.SetWindowSize(cbb.ScreenW, cbb.ScreenH)
 	ebiten.SetWindowTitle("TILES")
 	if err := ebiten.RunGame(game); err != nil {

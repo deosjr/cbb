@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -37,10 +38,10 @@ type Game struct {
 // NewGame initialises the engine with a world and a set of build options.
 // The world must embed BaseWorld or otherwise implement the World interface.
 // Call this before ebiten.RunGame.
-func NewGame(world World, options []Option) *Game {
+func NewGame(world World, options []Option, isometric bool) *Game {
 	tilemap := world.Tilemap()
 	mapW, mapH := mapDimensions(tilemap)
-	initSprites(mapW, mapH)
+	initSprites(mapW, mapH, isometric)
 
 	for c, t := range tilemap.Tiles {
 		sprite := t.Sprite
@@ -199,7 +200,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.drawRadiusHighlight(screen, mouseTile, cam)
 	}
 
-	for _, u := range g.units {
+	units := g.units
+	if isometricMode {
+		units = sortedByDepth(units)
+	}
+	for _, u := range units {
 		drawTileToScreen(screen, u.GetLoc(), u.Sprite(), cam)
 	}
 }
@@ -234,6 +239,23 @@ func (g *Game) drawRadiusHighlight(screen *ebiten.Image, mouseTile Coord, cam eb
 			drawTileToScreen(screen, Coord{x, y}, highlightSprite, cam)
 		}
 	}
+}
+
+func sortedByDepth(units []Unit) []Unit {
+	sorted := make([]Unit, len(units))
+	copy(sorted, units)
+	slices.SortFunc(sorted, func(a, b Unit) int {
+		da := a.GetLoc().X + a.GetLoc().Y
+		db := b.GetLoc().X + b.GetLoc().Y
+		if da < db {
+			return -1
+		}
+		if da > db {
+			return 1
+		}
+		return 0
+	})
+	return sorted
 }
 
 func mapDimensions(tm *TileMap) (w, h int) {

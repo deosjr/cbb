@@ -71,5 +71,19 @@ func FindRoute(tm *TileMap, from, to Coord) ([]Coord, error) {
 }
 
 func tileCoord(wx, wy float64) Coord {
+	if isometricMode {
+		return tileCoordIso(wx, wy)
+	}
 	return Coord{math.Floor(wx / resolution), math.Floor(wy / resolution)}
+}
+
+func tileCoordIso(wx, wy float64) Coord {
+	halfW := float64(isoTileW / 2) // 32
+	halfH := float64(isoTileH / 2) // 16
+	// Sprites are placed at top-left of the bounding box: bx = (x-y)*halfW + isoOffsetX.
+	// The diamond's top vertex is halfW inside that box, so the iso origin is bx+halfW.
+	// Invert around that origin: (x-y)*halfW = wx - isoOffsetX - halfW
+	a := (wx - float64(isoOffsetX) - halfW) / halfW // x - y
+	b := wy / halfH                                  // x + y
+	return Coord{math.Floor((a + b) / 2), math.Floor((b - a) / 2)}
 }
