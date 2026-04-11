@@ -22,6 +22,7 @@ type Game struct {
 
 	options   []Option
 	selection Option
+	rotation  int
 	start     *Coord
 
 	units      []Unit
@@ -29,6 +30,7 @@ type Game struct {
 
 	previewRoute  []Coord
 	prevMouseTile Coord
+	canPlace      bool
 
 	last          time.Time
 	frames        int
@@ -63,6 +65,7 @@ func NewGame(world World, options []Option, isometric bool) *Game {
 		camZoomSpeed:  1.2,
 		options:       options,
 		selection:     options[0],
+		canPlace:      true,
 		last:          time.Now(),
 		lastFPSUpdate: time.Now(),
 	}
@@ -95,6 +98,9 @@ func (g *Game) Update() error {
 
 	for _, o := range g.options {
 		if ebiten.IsKeyPressed(o.Key) {
+			if g.selection.Key != o.Key {
+				g.rotation = 0
+			}
 			g.selection = o
 			g.start = nil
 			g.previewRoute = nil
@@ -102,9 +108,33 @@ func (g *Game) Update() error {
 		}
 	}
 
+	if inpututil.IsKeyJustPressed(ebiten.KeyTab) && g.selection.Kind == KindBuilding {
+		g.rotation = (g.rotation + 1) % 4
+	}
+
 	mx, my := ebiten.CursorPosition()
 	worldX, worldY := g.screenToWorld(float64(mx), float64(my))
 	mouseTile := tileCoord(worldX, worldY)
+
+	// Cache placement validity for cursor colouring in Draw.
+	if g.selection.Kind == KindBuilding && g.selection.NewFunc != nil {
+		sw, sh := g.effectiveSize()
+		g.canPlace = g.footprintPassable(mouseTile, sw, sh)
+		if g.canPlace {
+			obj := g.selection.NewFunc()
+			if p, ok := obj.(Placeable); ok {
+				g.canPlace = p.CanPlace(mouseTile, g.world)
+			}
+		}
+		if g.canPlace {
+			ap := BuildingAccessPoint(mouseTile, sw, sh, g.rotation)
+			if t, ok := g.world.Tilemap().Tiles[ap]; !ok || !t.Passable {
+				g.canPlace = false
+			}
+		}
+	} else {
+		g.canPlace = true
+	}
 
 	if g.selection.Kind == KindRoad && g.start != nil && mouseTile != g.prevMouseTile {
 		route, err := FindRoute(g.world.Tilemap(), *g.start, mouseTile)
@@ -136,13 +166,35 @@ func (g *Game) Update() error {
 					}
 				}
 			case KindBuilding:
+				sw, sh := g.effectiveSize()
+				if !g.footprintPassable(mouseTile, sw, sh) {
+					break
+				}
+				ap := BuildingAccessPoint(mouseTile, sw, sh, g.rotation)
+				if t, ok := g.world.Tilemap().Tiles[ap]; !ok || !t.Passable {
+					break
+				}
 				obj := g.selection.NewFunc()
 				if p, ok := obj.(Placeable); ok && !p.CanPlace(mouseTile, g.world) {
 					break
 				}
 				units := obj.WhenPlaced(mouseTile, g.world)
-				drawTileToBatch(buildingBatch, mouseTile, obj.Sprite())
-				g.world.Roads().Tiles[mouseTile] = Tile{Passable: true}
+				if r, ok := obj.(Rotatable); ok {
+					r.SetRotation(g.rotation)
+				}
+				for dy := 0; dy < sh; dy++ {
+					for dx := 0; dx < sw; dx++ {
+						tc := Coord{mouseTile.X + float64(dx), mouseTile.Y + float64(dy)}
+						drawTileToBatch(buildingBatch, tc, obj.Sprite())
+					}
+				}
+				for dy := 0; dy < sh; dy++ {
+					for dx := 0; dx < sw; dx++ {
+						tc := Coord{mouseTile.X + float64(dx), mouseTile.Y + float64(dy)}
+						g.world.Roads().Tiles[tc] = Tile{Passable: true}
+					}
+				}
+				g.world.Roads().Tiles[ap] = Tile{Passable: true}
 				if u, ok := obj.(Updatable); ok {
 					g.updatables = append(g.updatables, u)
 				}
@@ -187,17 +239,35 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	mouseTile := tileCoord(worldX, worldY)
 
 	for _, c := range g.previewRoute {
-		drawTileToScreen(screen, c, roadSprite, cam)
+		drawTileToScreen(screen, c, roadSprite, cam, nil)
 	}
 
 	cursorSprite := g.selection.Sprite
 	if g.selection.Kind == KindRoad {
-		cursorSprite = roadSprite
-	}
-	drawTileToScreen(screen, mouseTile, cursorSprite, cam)
-
-	if g.selection.Radius > 0 {
-		g.drawRadiusHighlight(screen, mouseTile, cam)
+		drawTileToScreen(screen, mouseTile, roadSprite, cam, nil)
+	} else {
+		var cs *ebiten.ColorScale
+		if !g.canPlace {
+			var red ebiten.ColorScale
+			red.Scale(1, 0, 0, 1)
+			cs = &red
+		}
+		sw, sh := g.effectiveSize()
+		for dy := 0; dy < sh; dy++ {
+			for dx := 0; dx < sw; dx++ {
+				tc := Coord{mouseTile.X + float64(dx), mouseTile.Y + float64(dy)}
+				drawTileToScreen(screen, tc, cursorSprite, cam, cs)
+			}
+		}
+		if g.selection.NewFunc != nil {
+			ap := BuildingAccessPoint(mouseTile, sw, sh, g.rotation)
+			drawTileToScreen(screen, ap, highlightSprite, cam, nil)
+		}
+		if g.selection.Radius > 0 {
+			cx := mouseTile.X + float64(sw-1)/2
+			cy := mouseTile.Y + float64(sh-1)/2
+			g.drawRadiusHighlight(screen, Coord{cx, cy}, cam)
+		}
 	}
 
 	units := g.units
@@ -205,7 +275,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		units = sortedByDepth(units)
 	}
 	for _, u := range units {
-		drawTileToScreen(screen, u.GetLoc(), u.Sprite(), cam)
+		drawTileToScreen(screen, u.GetLoc(), u.Sprite(), cam, nil)
 	}
 }
 
@@ -236,9 +306,49 @@ func (g *Game) drawRadiusHighlight(screen *ebiten.Image, mouseTile Coord, cam eb
 			if math.Sqrt(dx*dx+dy*dy) > radius {
 				continue
 			}
-			drawTileToScreen(screen, Coord{x, y}, highlightSprite, cam)
+			drawTileToScreen(screen, Coord{x, y}, highlightSprite, cam, nil)
 		}
 	}
+}
+
+// selectionSize returns the footprint of an option, treating 0 as 1.
+func selectionSize(o Option) (w, h int) {
+	w, h = o.SizeW, o.SizeH
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
+	}
+	return
+}
+
+// effectiveSize returns the footprint dimensions accounting for rotation.
+// Odd rotations (west/east) swap width and height.
+func (g *Game) effectiveSize() (w, h int) {
+	w, h = selectionSize(g.selection)
+	if g.rotation%2 == 1 {
+		w, h = h, w
+	}
+	return
+}
+
+// footprintPassable reports whether all tiles in a w×h rectangle anchored at
+// top-left corner are passable terrain AND not already occupied by a road or
+// building.
+func (g *Game) footprintPassable(anchor Coord, w, h int) bool {
+	for dy := 0; dy < h; dy++ {
+		for dx := 0; dx < w; dx++ {
+			tc := Coord{anchor.X + float64(dx), anchor.Y + float64(dy)}
+			if t, ok := g.world.Tilemap().Tiles[tc]; !ok || !t.Passable {
+				return false
+			}
+			if _, occupied := g.world.Roads().Tiles[tc]; occupied {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func sortedByDepth(units []Unit) []Unit {

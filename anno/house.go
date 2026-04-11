@@ -13,14 +13,22 @@ const (
 // PioneerHouse is a pure data struct. Population and tax are managed centrally
 // by PopulationTick rather than per-house timers.
 type PioneerHouse struct {
-	loc cbb.Coord
-	pop int
+	loc      cbb.Coord
+	rotation int
+	accessPt cbb.Coord
+	pop      int
 }
 
 func NewPioneerHouse() cbb.Building { return &PioneerHouse{} }
 
-func (h *PioneerHouse) GetLoc() cbb.Coord     { return h.loc }
-func (h *PioneerHouse) Sprite() *ebiten.Image { return houseSprite }
+func (h *PioneerHouse) GetLoc() cbb.Coord      { return h.loc }
+func (h *PioneerHouse) Sprite() *ebiten.Image  { return houseSprite }
+func (h *PioneerHouse) AccessPoint() cbb.Coord { return h.accessPt }
+
+func (h *PioneerHouse) SetRotation(r int) {
+	h.rotation = r
+	h.accessPt = cbb.BuildingAccessPoint(h.loc, 2, 2, r)
+}
 
 func (h *PioneerHouse) CanPlace(loc cbb.Coord, world cbb.World) bool {
 	aw := world.(*annoWorld)

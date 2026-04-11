@@ -101,7 +101,7 @@ func drawTileToBatch(target *ebiten.Image, c Coord, sprite *ebiten.Image) {
 	target.DrawImage(sprite, op)
 }
 
-func drawTileToScreen(screen *ebiten.Image, c Coord, sprite *ebiten.Image, cam ebiten.GeoM) {
+func drawTileToScreen(screen *ebiten.Image, c Coord, sprite *ebiten.Image, cam ebiten.GeoM, cs *ebiten.ColorScale) {
 	op := &ebiten.DrawImageOptions{}
 	if isometricMode {
 		sx, sy := isoToScreen(c)
@@ -110,5 +110,8 @@ func drawTileToScreen(screen *ebiten.Image, c Coord, sprite *ebiten.Image, cam e
 		op.GeoM.Translate(c.X*resolution, c.Y*resolution)
 	}
 	op.GeoM.Concat(cam)
+	if cs != nil {
+		op.ColorScale = *cs
+	}
 	screen.DrawImage(sprite, op)
 }

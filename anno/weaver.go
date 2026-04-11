@@ -15,6 +15,8 @@ const weavingDur = 31 * time.Second / gameSpeed
 
 type WeavingHut struct {
 	loc        cbb.Coord
+	rotation   int
+	accessPt   cbb.Coord
 	inputs     *cbb.Inventory // Wool waiting to be processed
 	stockpile  *cbb.Inventory // finished Cloth, collected by WarehouseCart
 	processing bool
@@ -32,6 +34,12 @@ func NewWeavingHut() cbb.Building {
 func (h *WeavingHut) GetLoc() cbb.Coord        { return h.loc }
 func (h *WeavingHut) Sprite() *ebiten.Image     { return weaverSprite }
 func (h *WeavingHut) Stockpile() *cbb.Inventory { return h.stockpile }
+func (h *WeavingHut) AccessPoint() cbb.Coord    { return h.accessPt }
+
+func (h *WeavingHut) SetRotation(r int) {
+	h.rotation = r
+	h.accessPt = cbb.BuildingAccessPoint(h.loc, 2, 2, r)
+}
 
 func (h *WeavingHut) CanPlace(loc cbb.Coord, world cbb.World) bool {
 	aw := world.(*annoWorld)
@@ -45,12 +53,13 @@ func (h *WeavingHut) WhenPlaced(loc cbb.Coord, world cbb.World) []cbb.Unit {
 	aw.gold -= weaverCost
 	aw.producers = append(aw.producers, h)
 	return []cbb.Unit{&ProcessorCart{
-		loc:    loc,
-		home:   loc,
-		needs:  map[Good]int{Wool: 2},
-		inputs: h.inputs,
-		ts:     time.Now(),
-		sprite: processorCartSprite,
+		loc:          loc,
+		home:         loc,
+		homeBuilding: h,
+		needs:        map[Good]int{Wool: 2},
+		inputs:       h.inputs,
+		ts:           time.Now(),
+		sprite:       processorCartSprite,
 	}}
 }
 
@@ -86,15 +95,23 @@ const (
 )
 
 type ProcessorCart struct {
-	loc      cbb.Coord
-	home     cbb.Coord
-	route    []cbb.Coord
-	needs    map[Good]int   // e.g. {Wool: 2}
-	inputs   *cbb.Inventory // processor's input stockpile (shared pointer)
-	carrying map[Good]int
-	state    cartState
-	ts       time.Time
-	sprite   *ebiten.Image
+	loc          cbb.Coord
+	home         cbb.Coord       // fallback home if homeBuilding is nil
+	homeBuilding cbb.Accessible  // optional; overrides home for return routing
+	route        []cbb.Coord
+	needs        map[Good]int   // e.g. {Wool: 2}
+	inputs       *cbb.Inventory // processor's input stockpile (shared pointer)
+	carrying     map[Good]int
+	state        cartState
+	ts           time.Time
+	sprite       *ebiten.Image
+}
+
+func (c *ProcessorCart) homeCoord() cbb.Coord {
+	if c.homeBuilding != nil {
+		return c.homeBuilding.AccessPoint()
+	}
+	return c.home
 }
 
 func (c *ProcessorCart) GetLoc() cbb.Coord         { return c.loc }
@@ -131,7 +148,11 @@ func (c *ProcessorCart) Update(world cbb.World) {
 			c.ts = time.Now().Add(5 * time.Second)
 			return
 		}
-		route, err := cbb.FindRoute(world.Roads(), c.loc, aw.warehouseLoc)
+		warehouseDest := aw.warehouseLoc
+		if aw.warehouseBuilding != nil {
+			warehouseDest = aw.warehouseBuilding.AccessPoint()
+		}
+		route, err := cbb.FindRoute(world.Roads(), c.loc, warehouseDest)
 		if err != nil {
 			c.ts = time.Now().Add(5 * time.Second)
 			return
@@ -158,7 +179,7 @@ func (c *ProcessorCart) Update(world cbb.World) {
 			c.ts = time.Now().Add(5 * time.Second)
 			return
 		}
-		route, err := cbb.FindRoute(world.Roads(), c.loc, c.home)
+		route, err := cbb.FindRoute(world.Roads(), c.loc, c.homeCoord())
 		if err != nil {
 			// Can't get home: return goods to warehouse.
 			for g, n := range c.carrying {

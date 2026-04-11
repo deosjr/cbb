@@ -21,18 +21,26 @@ const (
 // Each tick it either walks toward a resource tile, waits while harvesting,
 // or walks home and deposits one unit into the building's local stockpile.
 type ExtractorWorker struct {
-	loc        cbb.Coord
-	home       cbb.Coord
-	stockpile  *cbb.Inventory // pointer to the spawning building's stockpile
-	output     Good
-	route      []cbb.Coord
-	state      workerState
-	harvestEnd time.Time
-	harvestDur time.Duration
-	ts         time.Time
-	sprite     *ebiten.Image
+	loc         cbb.Coord
+	home        cbb.Coord       // fallback home if homeBuilding is nil
+	homeBuilding cbb.Accessible // optional; overrides home when set
+	stockpile   *cbb.Inventory // pointer to the spawning building's stockpile
+	output      Good
+	route       []cbb.Coord
+	state       workerState
+	harvestEnd  time.Time
+	harvestDur  time.Duration
+	ts          time.Time
+	sprite      *ebiten.Image
 	// findTarget returns the terrain tile to walk toward from the given origin.
 	findTarget func(*annoWorld, cbb.Coord) (cbb.Coord, bool)
+}
+
+func (w *ExtractorWorker) homeCoord() cbb.Coord {
+	if w.homeBuilding != nil {
+		return w.homeBuilding.AccessPoint()
+	}
+	return w.home
 }
 
 func (w *ExtractorWorker) GetLoc() cbb.Coord          { return w.loc }
@@ -45,7 +53,7 @@ func (w *ExtractorWorker) Update(world cbb.World) {
 
 	switch w.state {
 	case stateFinding:
-		target, ok := w.findTarget(aw, w.home)
+		target, ok := w.findTarget(aw, w.homeCoord())
 		if !ok {
 			w.ts = time.Now().Add(5 * time.Second)
 			return
@@ -71,7 +79,7 @@ func (w *ExtractorWorker) Update(world cbb.World) {
 		if time.Now().Before(w.harvestEnd) {
 			return
 		}
-		route, err := cbb.FindRoute(world.Tilemap(), w.loc, w.home)
+		route, err := cbb.FindRoute(world.Tilemap(), w.loc, w.homeCoord())
 		if err != nil {
 			w.state = stateFinding
 			return

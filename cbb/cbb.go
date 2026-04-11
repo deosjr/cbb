@@ -69,6 +69,36 @@ type Placeable interface {
 	CanPlace(Coord, World) bool
 }
 
+// Rotatable is optionally implemented by buildings that support rotation.
+// SetRotation is called by the engine after WhenPlaced with the current rotation
+// (0=south, 1=west, 2=north, 3=east).
+type Rotatable interface {
+	SetRotation(int)
+}
+
+// Accessible is optionally implemented by buildings that have a single entry/exit
+// tile. Workers use AccessPoint as their home coordinate for pathfinding.
+type Accessible interface {
+	AccessPoint() Coord
+}
+
+// BuildingAccessPoint computes the access tile for a building footprint.
+// anchor is the top-left tile, w and h are the effective dimensions after
+// applying rotation. rotation: 0=south, 1=west, 2=north, 3=east.
+func BuildingAccessPoint(anchor Coord, w, h, rotation int) Coord {
+	switch rotation % 4 {
+	case 0: // south: tile below the bottom edge
+		return Coord{anchor.X + float64(w/2), anchor.Y + float64(h)}
+	case 1: // west: tile left of the left edge
+		return Coord{anchor.X - 1, anchor.Y + float64(h/2)}
+	case 2: // north: tile above the top edge
+		return Coord{anchor.X + float64(w/2), anchor.Y - 1}
+	case 3: // east: tile right of the right edge
+		return Coord{anchor.X + float64(w), anchor.Y + float64(h/2)}
+	}
+	return anchor
+}
+
 // SelectionKind distinguishes tool types in the build menu.
 type SelectionKind int
 
@@ -82,6 +112,8 @@ type Option struct {
 	Name    string
 	Kind    SelectionKind
 	Radius  int
+	SizeW   int // footprint width in tiles; 0 treated as 1
+	SizeH   int // footprint height in tiles; 0 treated as 1
 	Key     ebiten.Key
 	Sprite  *ebiten.Image // cursor sprite; road options may omit this
 	NewFunc func() Building

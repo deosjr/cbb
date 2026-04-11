@@ -8,13 +8,21 @@ import (
 )
 
 type Warehouse struct {
-	loc cbb.Coord
+	loc      cbb.Coord
+	rotation int
+	accessPt cbb.Coord
 }
 
 func NewWarehouse() cbb.Building { return &Warehouse{} }
 
 func (w *Warehouse) GetLoc() cbb.Coord     { return w.loc }
 func (w *Warehouse) Sprite() *ebiten.Image { return warehouseSprite }
+func (w *Warehouse) AccessPoint() cbb.Coord { return w.accessPt }
+
+func (w *Warehouse) SetRotation(r int) {
+	w.rotation = r
+	w.accessPt = cbb.BuildingAccessPoint(w.loc, 2, 3, r)
+}
 
 func (w *Warehouse) CanPlace(loc cbb.Coord, world cbb.World) bool {
 	return world.(*annoWorld).terrainAt(loc) != Water
@@ -24,13 +32,15 @@ func (w *Warehouse) WhenPlaced(loc cbb.Coord, world cbb.World) []cbb.Unit {
 	w.loc = loc
 	aw := world.(*annoWorld)
 	aw.warehouseLoc = loc
+	aw.warehouseBuilding = w
 	aw.warehousePlaced = true
 	return []cbb.Unit{&WarehouseCart{
-		loc:    loc,
-		home:   loc,
-		state:  wcIdle,
-		ts:     time.Now(),
-		sprite: carrierSprite,
+		loc:          loc,
+		home:         loc,
+		homeBuilding: w,
+		state:        wcIdle,
+		ts:           time.Now(),
+		sprite:       carrierSprite,
 	}}
 }
 
@@ -48,14 +58,29 @@ const (
 )
 
 type WarehouseCart struct {
-	loc      cbb.Coord
-	home     cbb.Coord
-	route    []cbb.Coord
-	carrying map[Good]int
-	target   Producer
-	state    wcState
-	ts       time.Time
-	sprite   *ebiten.Image
+	loc          cbb.Coord
+	home         cbb.Coord       // fallback home if homeBuilding is nil
+	homeBuilding cbb.Accessible  // optional; overrides home for return routing
+	route        []cbb.Coord
+	carrying     map[Good]int
+	target       Producer
+	state        wcState
+	ts           time.Time
+	sprite       *ebiten.Image
+}
+
+func (c *WarehouseCart) homeCoord() cbb.Coord {
+	if c.homeBuilding != nil {
+		return c.homeBuilding.AccessPoint()
+	}
+	return c.home
+}
+
+func producerDest(p Producer) cbb.Coord {
+	if a, ok := p.(cbb.Accessible); ok {
+		return a.AccessPoint()
+	}
+	return p.GetLoc()
 }
 
 func (c *WarehouseCart) GetLoc() cbb.Coord         { return c.loc }
@@ -87,7 +112,7 @@ func (c *WarehouseCart) Update(world cbb.World) {
 			if !hasGoods {
 				continue
 			}
-			route, err := cbb.FindRoute(world.Roads(), c.loc, p.GetLoc())
+			route, err := cbb.FindRoute(world.Roads(), c.loc, producerDest(p))
 			if err != nil {
 				continue
 			}
@@ -111,7 +136,7 @@ func (c *WarehouseCart) Update(world cbb.World) {
 			}
 		}
 		c.target = nil
-		route, err := cbb.FindRoute(world.Roads(), c.loc, c.home)
+		route, err := cbb.FindRoute(world.Roads(), c.loc, c.homeCoord())
 		if err != nil {
 			c.state = wcIdle
 			return

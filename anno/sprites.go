@@ -19,6 +19,7 @@ var (
 	sheepFarmSprite *ebiten.Image
 	weaverSprite    *ebiten.Image
 	houseSprite     *ebiten.Image
+	chapelSprite    *ebiten.Image
 
 	fishWorkerSprite    *ebiten.Image
 	foresterWorkerSprite *ebiten.Image
@@ -42,6 +43,7 @@ func loadSprites() {
 	sheepFarmSprite = cbb.NewIsoDiamondSprite(color.RGBA{0xF5, 0xF5, 0xDC, 0xff}) // beige
 	weaverSprite    = cbb.NewIsoDiamondSprite(color.RGBA{0xDA, 0x70, 0xD6, 0xff}) // orchid
 	houseSprite     = cbb.NewIsoDiamondSprite(color.RGBA{0xFF, 0xD7, 0x00, 0xff}) // gold
+	chapelSprite    = cbb.NewIsoDiamondSprite(color.RGBA{0xFF, 0xFF, 0xFF, 0xff}) // white
 
 	// Worker units (small solid squares so they stand out on iso tiles)
 	fishWorkerSprite     = cbb.NewSolidSprite(color.RGBA{0x00, 0x00, 0x8B, 0xff}) // darkblue

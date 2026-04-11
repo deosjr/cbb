@@ -15,6 +15,7 @@ func getOptions() []cbb.Option {
 		{
 			Name:    "warehouse",
 			Kind:    cbb.KindBuilding,
+			SizeW:   2, SizeH: 3,
 			Key:     ebiten.KeyW,
 			Sprite:  warehouseSprite,
 			NewFunc: NewWarehouse,
@@ -22,6 +23,7 @@ func getOptions() []cbb.Option {
 		{
 			Name:    "fisherman",
 			Kind:    cbb.KindBuilding,
+			SizeW:   1, SizeH: 1,
 			Key:     ebiten.KeyF,
 			Sprite:  fishermanSprite,
 			NewFunc: NewFishermanHut,
@@ -29,6 +31,7 @@ func getOptions() []cbb.Option {
 		{
 			Name:    "forester",
 			Kind:    cbb.KindBuilding,
+			SizeW:   2, SizeH: 2,
 			Key:     ebiten.KeyT,
 			Sprite:  foresterSprite,
 			NewFunc: NewForesterHut,
@@ -36,6 +39,7 @@ func getOptions() []cbb.Option {
 		{
 			Name:    "hunter",
 			Kind:    cbb.KindBuilding,
+			SizeW:   1, SizeH: 1,
 			Key:     ebiten.KeyU,
 			Sprite:  hunterSprite,
 			NewFunc: NewHunterLodge,
@@ -43,6 +47,7 @@ func getOptions() []cbb.Option {
 		{
 			Name:    "sheep farm",
 			Kind:    cbb.KindBuilding,
+			SizeW:   2, SizeH: 2,
 			Key:     ebiten.KeyS,
 			Sprite:  sheepFarmSprite,
 			NewFunc: NewSheepFarm,
@@ -50,6 +55,7 @@ func getOptions() []cbb.Option {
 		{
 			Name:    "weaver",
 			Kind:    cbb.KindBuilding,
+			SizeW:   2, SizeH: 2,
 			Key:     ebiten.KeyV,
 			Sprite:  weaverSprite,
 			NewFunc: NewWeavingHut,
@@ -57,10 +63,19 @@ func getOptions() []cbb.Option {
 		{
 			Name:    "house",
 			Kind:    cbb.KindBuilding,
-			Radius:  3,
+			SizeW:   2, SizeH: 2,
 			Key:     ebiten.KeyY,
 			Sprite:  houseSprite,
 			NewFunc: NewPioneerHouse,
+		},
+		{
+			Name:    "chapel",
+			Kind:    cbb.KindBuilding,
+			SizeW:   2, SizeH: 1,
+			Radius:  8,
+			Key:     ebiten.KeyC,
+			Sprite:  chapelSprite,
+			NewFunc: NewChapel,
 		},
 	}
 }
