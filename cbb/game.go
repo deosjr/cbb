@@ -130,6 +130,7 @@ func (g *Game) Update() error {
 		g.canPlace = true
 	}
 
+	// TODO: should not be able to build roads over houses!
 	if g.selection.Kind == KindRoad && g.start != nil && mouseTile != g.prevMouseTile {
 		route, err := FindRoute(g.world.Tilemap(), *g.start, mouseTile)
 		if err == nil {

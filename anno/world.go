@@ -7,18 +7,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// gameSpeed compresses all production and consumption timers so the game
-// is observable in real time. A value of 10 means 10 in-game minutes pass
-// per real second, preserving the supply/demand ratios from the Anno data.
-const gameSpeed = 10
-
-// Producer is implemented by any building that has a local output stockpile
-// the WarehouseCart should collect from.
-type Producer interface {
-	cbb.Located
-	Stockpile() *cbb.Inventory
-}
-
 type annoWorld struct {
 	*cbb.BaseWorld
 	terrain           map[cbb.Coord]Terrain

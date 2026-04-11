@@ -9,6 +9,11 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
+// gameSpeed compresses all production and consumption timers so the game
+// is observable in real time. A value of 10 means 10 in-game minutes pass
+// per real second, preserving the supply/demand ratios from the Anno data.
+const gameSpeed = 10
+
 // AnnoGame wraps cbb.Game to overlay the Anno-specific HUD.
 type AnnoGame struct {
 	*cbb.Game

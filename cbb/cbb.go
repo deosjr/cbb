@@ -56,6 +56,7 @@ type Unit interface {
 
 // World is passed to Update and WhenPlaced, providing access to shared game state.
 // Games extend this by embedding BaseWorld in their own world struct.
+// TODO: Tasks are unused in Anno, and should be redesigned
 type World interface {
 	AddTask(Task)
 	ClaimTask() (Task, bool)

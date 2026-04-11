@@ -10,9 +10,9 @@ import (
 type Terrain int
 
 const (
-	Water  Terrain = iota
-	Plains Terrain = iota
-	Forest Terrain = iota
+	Water Terrain = iota
+	Plains
+	Forest
 )
 
 const (

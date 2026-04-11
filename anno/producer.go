@@ -7,11 +7,18 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// Producer is implemented by any building that has a local output stockpile
+// the WarehouseCart should collect from.
+type Producer interface {
+	cbb.Located
+	Stockpile() *cbb.Inventory
+}
+
 // workerState drives the out-and-back cycle shared by all extractor workers.
 type workerState int
 
 const (
-	stateFinding    workerState = iota
+	stateFinding workerState = iota
 	stateGoingOut
 	stateHarvesting // waiting at the resource site
 	stateReturning
@@ -21,17 +28,17 @@ const (
 // Each tick it either walks toward a resource tile, waits while harvesting,
 // or walks home and deposits one unit into the building's local stockpile.
 type ExtractorWorker struct {
-	loc         cbb.Coord
-	home        cbb.Coord       // fallback home if homeBuilding is nil
+	loc          cbb.Coord
+	home         cbb.Coord      // fallback home if homeBuilding is nil
 	homeBuilding cbb.Accessible // optional; overrides home when set
-	stockpile   *cbb.Inventory // pointer to the spawning building's stockpile
-	output      Good
-	route       []cbb.Coord
-	state       workerState
-	harvestEnd  time.Time
-	harvestDur  time.Duration
-	ts          time.Time
-	sprite      *ebiten.Image
+	stockpile    *cbb.Inventory // pointer to the spawning building's stockpile
+	output       Good
+	route        []cbb.Coord
+	state        workerState
+	harvestEnd   time.Time
+	harvestDur   time.Duration
+	ts           time.Time
+	sprite       *ebiten.Image
 	// findTarget returns the terrain tile to walk toward from the given origin.
 	findTarget func(*annoWorld, cbb.Coord) (cbb.Coord, bool)
 }
@@ -44,8 +51,8 @@ func (w *ExtractorWorker) homeCoord() cbb.Coord {
 }
 
 func (w *ExtractorWorker) GetLoc() cbb.Coord          { return w.loc }
-func (w *ExtractorWorker) Sprite() *ebiten.Image       { return w.sprite }
-func (w *ExtractorWorker) CanUpdate(t time.Time) bool  { return t.After(w.ts) }
+func (w *ExtractorWorker) Sprite() *ebiten.Image      { return w.sprite }
+func (w *ExtractorWorker) CanUpdate(t time.Time) bool { return t.After(w.ts) }
 
 func (w *ExtractorWorker) Update(world cbb.World) {
 	w.ts = time.Now().Add(500 * time.Millisecond)

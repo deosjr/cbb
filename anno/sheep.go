@@ -21,10 +21,10 @@ type SheepFarm struct {
 func NewSheepFarm() cbb.Building { return &SheepFarm{stockpile: cbb.NewInventory()} }
 
 func (h *SheepFarm) GetLoc() cbb.Coord                        { return h.loc }
-func (h *SheepFarm) Sprite() *ebiten.Image                     { return sheepFarmSprite }
-func (h *SheepFarm) Stockpile() *cbb.Inventory                 { return h.stockpile }
-func (h *SheepFarm) AccessPoint() cbb.Coord                    { return h.accessPt }
-func (h *SheepFarm) GetFootprintSprite() (*ebiten.Image, int)  { return h.isoSprite, h.isoFootH }
+func (h *SheepFarm) Sprite() *ebiten.Image                    { return sheepFarmSprite }
+func (h *SheepFarm) Stockpile() *cbb.Inventory                { return h.stockpile }
+func (h *SheepFarm) AccessPoint() cbb.Coord                   { return h.accessPt }
+func (h *SheepFarm) GetFootprintSprite() (*ebiten.Image, int) { return h.isoSprite, h.isoFootH }
 
 func (h *SheepFarm) SetRotation(r int) {
 	h.rotation = r
@@ -37,6 +37,7 @@ func (h *SheepFarm) CanPlace(loc cbb.Coord, world cbb.World) bool {
 	return aw.terrainAt(loc) == Plains && aw.gold >= sheepFarmCost
 }
 
+// TODO: spawns multiple sheep, which move randomly between grass tiles in the area
 func (h *SheepFarm) WhenPlaced(loc cbb.Coord, world cbb.World) []cbb.Unit {
 	h.loc = loc
 	h.SetRotation(0)
