@@ -8,20 +8,28 @@ import (
 )
 
 type Warehouse struct {
-	loc      cbb.Coord
-	rotation int
-	accessPt cbb.Coord
+	loc       cbb.Coord
+	rotation  int
+	accessPt  cbb.Coord
+	isoSprite *ebiten.Image
+	isoFootH  int
 }
 
 func NewWarehouse() cbb.Building { return &Warehouse{} }
 
-func (w *Warehouse) GetLoc() cbb.Coord     { return w.loc }
-func (w *Warehouse) Sprite() *ebiten.Image { return warehouseSprite }
-func (w *Warehouse) AccessPoint() cbb.Coord { return w.accessPt }
+func (w *Warehouse) GetLoc() cbb.Coord                        { return w.loc }
+func (w *Warehouse) Sprite() *ebiten.Image                     { return warehouseSprite }
+func (w *Warehouse) AccessPoint() cbb.Coord                    { return w.accessPt }
+func (w *Warehouse) GetFootprintSprite() (*ebiten.Image, int)  { return w.isoSprite, w.isoFootH }
 
 func (w *Warehouse) SetRotation(r int) {
 	w.rotation = r
-	w.accessPt = cbb.BuildingAccessPoint(w.loc, 2, 3, r)
+	w.isoSprite, w.isoFootH = isoBoxMulti(warehouseWall, warehouseRoof, warehouseWallH, 2, 3, r)
+	sw, sh := 2, 3
+	if r%2 == 1 {
+		sw, sh = 3, 2
+	}
+	w.accessPt = cbb.BuildingAccessPoint(w.loc, sw, sh, r)
 }
 
 func (w *Warehouse) CanPlace(loc cbb.Coord, world cbb.World) bool {
@@ -30,6 +38,7 @@ func (w *Warehouse) CanPlace(loc cbb.Coord, world cbb.World) bool {
 
 func (w *Warehouse) WhenPlaced(loc cbb.Coord, world cbb.World) []cbb.Unit {
 	w.loc = loc
+	w.SetRotation(0)
 	aw := world.(*annoWorld)
 	aw.warehouseLoc = loc
 	aw.warehouseBuilding = w

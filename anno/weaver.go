@@ -17,6 +17,8 @@ type WeavingHut struct {
 	loc        cbb.Coord
 	rotation   int
 	accessPt   cbb.Coord
+	isoSprite  *ebiten.Image
+	isoFootH   int
 	inputs     *cbb.Inventory // Wool waiting to be processed
 	stockpile  *cbb.Inventory // finished Cloth, collected by WarehouseCart
 	processing bool
@@ -31,13 +33,15 @@ func NewWeavingHut() cbb.Building {
 	}
 }
 
-func (h *WeavingHut) GetLoc() cbb.Coord        { return h.loc }
-func (h *WeavingHut) Sprite() *ebiten.Image     { return weaverSprite }
-func (h *WeavingHut) Stockpile() *cbb.Inventory { return h.stockpile }
-func (h *WeavingHut) AccessPoint() cbb.Coord    { return h.accessPt }
+func (h *WeavingHut) GetLoc() cbb.Coord                        { return h.loc }
+func (h *WeavingHut) Sprite() *ebiten.Image                     { return weaverSprite }
+func (h *WeavingHut) Stockpile() *cbb.Inventory                 { return h.stockpile }
+func (h *WeavingHut) AccessPoint() cbb.Coord                    { return h.accessPt }
+func (h *WeavingHut) GetFootprintSprite() (*ebiten.Image, int)  { return h.isoSprite, h.isoFootH }
 
 func (h *WeavingHut) SetRotation(r int) {
 	h.rotation = r
+	h.isoSprite, h.isoFootH = isoBoxMulti(weaverWall, weaverRoof, weaverWallH, 2, 2, r)
 	h.accessPt = cbb.BuildingAccessPoint(h.loc, 2, 2, r)
 }
 
@@ -48,6 +52,7 @@ func (h *WeavingHut) CanPlace(loc cbb.Coord, world cbb.World) bool {
 
 func (h *WeavingHut) WhenPlaced(loc cbb.Coord, world cbb.World) []cbb.Unit {
 	h.loc = loc
+	h.SetRotation(0)
 	h.ts = time.Now()
 	aw := world.(*annoWorld)
 	aw.gold -= weaverCost

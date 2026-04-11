@@ -13,18 +13,22 @@ type SheepFarm struct {
 	loc       cbb.Coord
 	rotation  int
 	accessPt  cbb.Coord
+	isoSprite *ebiten.Image
+	isoFootH  int
 	stockpile *cbb.Inventory
 }
 
 func NewSheepFarm() cbb.Building { return &SheepFarm{stockpile: cbb.NewInventory()} }
 
-func (h *SheepFarm) GetLoc() cbb.Coord        { return h.loc }
-func (h *SheepFarm) Sprite() *ebiten.Image     { return sheepFarmSprite }
-func (h *SheepFarm) Stockpile() *cbb.Inventory { return h.stockpile }
-func (h *SheepFarm) AccessPoint() cbb.Coord    { return h.accessPt }
+func (h *SheepFarm) GetLoc() cbb.Coord                        { return h.loc }
+func (h *SheepFarm) Sprite() *ebiten.Image                     { return sheepFarmSprite }
+func (h *SheepFarm) Stockpile() *cbb.Inventory                 { return h.stockpile }
+func (h *SheepFarm) AccessPoint() cbb.Coord                    { return h.accessPt }
+func (h *SheepFarm) GetFootprintSprite() (*ebiten.Image, int)  { return h.isoSprite, h.isoFootH }
 
 func (h *SheepFarm) SetRotation(r int) {
 	h.rotation = r
+	h.isoSprite, h.isoFootH = isoBoxMulti(sheepFarmWall, sheepFarmRoof, sheepFarmWallH, 2, 2, r)
 	h.accessPt = cbb.BuildingAccessPoint(h.loc, 2, 2, r)
 }
 
@@ -35,6 +39,7 @@ func (h *SheepFarm) CanPlace(loc cbb.Coord, world cbb.World) bool {
 
 func (h *SheepFarm) WhenPlaced(loc cbb.Coord, world cbb.World) []cbb.Unit {
 	h.loc = loc
+	h.SetRotation(0)
 	aw := world.(*annoWorld)
 	aw.gold -= sheepFarmCost
 	aw.producers = append(aw.producers, h)

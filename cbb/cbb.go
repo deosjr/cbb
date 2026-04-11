@@ -69,6 +69,15 @@ type Placeable interface {
 	CanPlace(Coord, World) bool
 }
 
+// FootprintSpriteGetter is optionally implemented by buildings that provide a
+// single combined sprite for their full footprint in isometric mode.
+// The engine draws it once at the anchor tile instead of one sprite per tile.
+// Returns the sprite and footH (effective footprint height after rotation),
+// which is used to compute the left-shift when positioning the sprite.
+type FootprintSpriteGetter interface {
+	GetFootprintSprite() (*ebiten.Image, int)
+}
+
 // Rotatable is optionally implemented by buildings that support rotation.
 // SetRotation is called by the engine after WhenPlaced with the current rotation
 // (0=south, 1=west, 2=north, 3=east).

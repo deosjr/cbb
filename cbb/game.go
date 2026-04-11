@@ -126,12 +126,6 @@ func (g *Game) Update() error {
 				g.canPlace = p.CanPlace(mouseTile, g.world)
 			}
 		}
-		if g.canPlace {
-			ap := BuildingAccessPoint(mouseTile, sw, sh, g.rotation)
-			if t, ok := g.world.Tilemap().Tiles[ap]; !ok || !t.Passable {
-				g.canPlace = false
-			}
-		}
 	} else {
 		g.canPlace = true
 	}
@@ -170,10 +164,6 @@ func (g *Game) Update() error {
 				if !g.footprintPassable(mouseTile, sw, sh) {
 					break
 				}
-				ap := BuildingAccessPoint(mouseTile, sw, sh, g.rotation)
-				if t, ok := g.world.Tilemap().Tiles[ap]; !ok || !t.Passable {
-					break
-				}
 				obj := g.selection.NewFunc()
 				if p, ok := obj.(Placeable); ok && !p.CanPlace(mouseTile, g.world) {
 					break
@@ -182,10 +172,24 @@ func (g *Game) Update() error {
 				if r, ok := obj.(Rotatable); ok {
 					r.SetRotation(g.rotation)
 				}
-				for dy := 0; dy < sh; dy++ {
-					for dx := 0; dx < sw; dx++ {
-						tc := Coord{mouseTile.X + float64(dx), mouseTile.Y + float64(dy)}
-						drawTileToBatch(buildingBatch, tc, obj.Sprite())
+				if isometricMode {
+					if fps, ok := obj.(FootprintSpriteGetter); ok {
+						spr, footH := fps.GetFootprintSprite()
+						drawMultiBuildingToBatch(buildingBatch, mouseTile, spr, footH)
+					} else {
+						for dy := sh - 1; dy >= 0; dy-- {
+							for dx := sw - 1; dx >= 0; dx-- {
+								tc := Coord{mouseTile.X + float64(dx), mouseTile.Y + float64(dy)}
+								drawTileToBatch(buildingBatch, tc, obj.Sprite())
+							}
+						}
+					}
+				} else {
+					for dy := 0; dy < sh; dy++ {
+						for dx := 0; dx < sw; dx++ {
+							tc := Coord{mouseTile.X + float64(dx), mouseTile.Y + float64(dy)}
+							drawTileToBatch(buildingBatch, tc, obj.Sprite())
+						}
 					}
 				}
 				for dy := 0; dy < sh; dy++ {
@@ -194,7 +198,10 @@ func (g *Game) Update() error {
 						g.world.Roads().Tiles[tc] = Tile{Passable: true}
 					}
 				}
-				g.world.Roads().Tiles[ap] = Tile{Passable: true}
+				ap := BuildingAccessPoint(mouseTile, sw, sh, g.rotation)
+				if t, ok := g.world.Tilemap().Tiles[ap]; ok && t.Passable {
+					g.world.Roads().Tiles[ap] = Tile{Passable: true}
+				}
 				if u, ok := obj.(Updatable); ok {
 					g.updatables = append(g.updatables, u)
 				}
