@@ -24,7 +24,7 @@ func (w *Warehouse) GetFootprintSprite() (*ebiten.Image, int)  { return w.isoSpr
 
 func (w *Warehouse) SetRotation(r int) {
 	w.rotation = r
-	w.isoSprite, w.isoFootH = isoBoxMulti(warehouseWall, warehouseRoof, warehouseWallH, 2, 3, r)
+	w.isoSprite, w.isoFootH = cbb.NewIsoBoxSpriteMultiRotated(warehouseWall, warehouseRoof, warehouseWallH, 2, 3, r)
 	sw, sh := 2, 3
 	if r%2 == 1 {
 		sw, sh = 3, 2

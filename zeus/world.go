@@ -1,11 +1,9 @@
 package main
 
 import (
-	"image/color"
 	"time"
 
 	"github.com/deosjr/tiles/cbb"
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // ServiceType identifies which service a walker provides.
@@ -67,12 +65,3 @@ func (w *zeusWorld) HasCoverage(c cbb.Coord, s ServiceType) bool {
 	return false
 }
 
-// isoBoxMulti computes a multi-tile iso box sprite and its footH for GetFootprintSprite.
-// baseW/baseH are the unrotated dimensions; rotation swaps them at odd values.
-func isoBoxMulti(wall, roof color.Color, wallH, baseW, baseH, rotation int) (*ebiten.Image, int) {
-	w, h := baseW, baseH
-	if rotation%2 == 1 {
-		w, h = h, w
-	}
-	return cbb.NewIsoBoxSpriteMulti(wall, roof, wallH, w, h), h
-}

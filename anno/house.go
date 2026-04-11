@@ -30,7 +30,7 @@ func (h *PioneerHouse) GetFootprintSprite() (*ebiten.Image, int)  { return h.iso
 
 func (h *PioneerHouse) SetRotation(r int) {
 	h.rotation = r
-	h.isoSprite, h.isoFootH = isoBoxMulti(houseWall, houseRoof, houseWallH, 2, 2, r)
+	h.isoSprite, h.isoFootH = cbb.NewIsoBoxSpriteMultiRotated(houseWall, houseRoof, houseWallH, 2, 2, r)
 	h.accessPt = cbb.BuildingAccessPoint(h.loc, 2, 2, r)
 }
 

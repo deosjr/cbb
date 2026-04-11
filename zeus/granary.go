@@ -30,7 +30,7 @@ func (g *Granary) GetFootprintSprite() (*ebiten.Image, int) { return g.isoSprite
 
 func (g *Granary) SetRotation(r int) {
 	g.rotation = r
-	g.isoSprite, g.isoFootH = isoBoxMulti(granaryWall, granaryRoof, granaryWallH, 2, 2, r)
+	g.isoSprite, g.isoFootH = cbb.NewIsoBoxSpriteMultiRotated(granaryWall, granaryRoof, granaryWallH, 2, 2, r)
 	g.accessPt = cbb.BuildingAccessPoint(g.loc, 2, 2, r)
 }
 

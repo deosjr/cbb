@@ -42,7 +42,7 @@ func (h *HuntingLodge) Update(world cbb.World) {
 
 func (h *HuntingLodge) SetRotation(r int) {
 	h.rotation = r
-	h.isoSprite, h.isoFootH = isoBoxMulti(hunterWall, hunterRoof, hunterWallH, 1, 1, r)
+	h.isoSprite, h.isoFootH = cbb.NewIsoBoxSpriteMultiRotated(hunterWall, hunterRoof, hunterWallH, 1, 1, r)
 	h.accessPt = cbb.BuildingAccessPoint(h.loc, 1, 1, r)
 }
 

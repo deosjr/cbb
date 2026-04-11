@@ -217,6 +217,18 @@ func NewIsoBoxSpriteMulti(wallColor, roofColor color.Color, wallH, w, h int) *eb
 	return ebiten.NewImageFromImage(base)
 }
 
+// NewIsoBoxSpriteMultiRotated is a convenience wrapper around NewIsoBoxSpriteMulti
+// that accounts for rotation: odd rotations (west/east) swap w and h.
+// Returns the combined sprite and the effective footprint height after rotation,
+// which is needed by drawMultiBuildingToBatch/ToScreen for correct positioning.
+func NewIsoBoxSpriteMultiRotated(wall, roof color.Color, wallH, baseW, baseH, rotation int) (*ebiten.Image, int) {
+	w, h := baseW, baseH
+	if rotation%2 == 1 {
+		w, h = h, w
+	}
+	return NewIsoBoxSpriteMulti(wall, roof, wallH, w, h), h
+}
+
 // drawMultiBuildingToBatch draws a multi-tile building sprite onto a batch.
 // The sprite was created by NewIsoBoxSpriteMulti with footprint (w, h).
 // footH is the effective footprint height (h after rotation), used to shift

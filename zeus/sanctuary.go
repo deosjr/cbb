@@ -39,7 +39,7 @@ func (s *Sanctuary) GetFootprintSprite() (*ebiten.Image, int) { return s.isoSpri
 
 func (s *Sanctuary) SetRotation(r int) {
 	s.rotation = r
-	s.isoSprite, s.isoFootH = isoBoxMulti(sanctuaryWall, sanctuaryRoof, sanctuaryWallH, 2, 1, r)
+	s.isoSprite, s.isoFootH = cbb.NewIsoBoxSpriteMultiRotated(sanctuaryWall, sanctuaryRoof, sanctuaryWallH, 2, 1, r)
 	sw, sh := 2, 1
 	if r%2 == 1 {
 		sw, sh = 1, 2

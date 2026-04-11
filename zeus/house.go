@@ -81,5 +81,5 @@ func (h *GreekHouse) WhenPlaced(loc cbb.Coord, world cbb.World) []cbb.Unit {
 // rebuildSprite recreates the iso box sprite for the current tier and rotation.
 // Called from SetRotation and also from PopulationTick when the tier changes.
 func (h *GreekHouse) rebuildSprite() {
-	h.isoSprite, h.isoFootH = isoBoxMulti(houseWalls[h.tier], houseRoofs[h.tier], houseWallH, 1, 1, h.rotation)
+	h.isoSprite, h.isoFootH = cbb.NewIsoBoxSpriteMultiRotated(houseWalls[h.tier], houseRoofs[h.tier], houseWallH, 1, 1, h.rotation)
 }

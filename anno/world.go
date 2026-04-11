@@ -1,10 +1,7 @@
 package main
 
 import (
-	"image/color"
-
 	"github.com/deosjr/tiles/cbb"
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type annoWorld struct {
@@ -33,12 +30,3 @@ func (w *annoWorld) terrainAt(c cbb.Coord) Terrain {
 	return w.terrain[c]
 }
 
-// isoBoxMulti computes a multi-tile sprite and its footH for GetFootprintSprite.
-// baseW/baseH are the unrotated dimensions; rotation swaps them at odd values.
-func isoBoxMulti(wall, roof color.Color, wallH, baseW, baseH, rotation int) (*ebiten.Image, int) {
-	w, h := baseW, baseH
-	if rotation%2 == 1 {
-		w, h = h, w
-	}
-	return cbb.NewIsoBoxSpriteMulti(wall, roof, wallH, w, h), h
-}

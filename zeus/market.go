@@ -36,7 +36,7 @@ func (m *Market) GetFootprintSprite() (*ebiten.Image, int) { return m.isoSprite,
 
 func (m *Market) SetRotation(r int) {
 	m.rotation = r
-	m.isoSprite, m.isoFootH = isoBoxMulti(marketWall, marketRoof, marketWallH, 1, 1, r)
+	m.isoSprite, m.isoFootH = cbb.NewIsoBoxSpriteMultiRotated(marketWall, marketRoof, marketWallH, 1, 1, r)
 	m.accessPt = cbb.BuildingAccessPoint(m.loc, 1, 1, r)
 }
 

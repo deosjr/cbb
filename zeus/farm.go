@@ -45,7 +45,7 @@ func (f *WheatFarm) Update(world cbb.World) {
 
 func (f *WheatFarm) SetRotation(r int) {
 	f.rotation = r
-	f.isoSprite, f.isoFootH = isoBoxMulti(farmWall, farmRoof, farmWallH, 2, 2, r)
+	f.isoSprite, f.isoFootH = cbb.NewIsoBoxSpriteMultiRotated(farmWall, farmRoof, farmWallH, 2, 2, r)
 	f.accessPt = cbb.BuildingAccessPoint(f.loc, 2, 2, r)
 }
 
