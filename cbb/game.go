@@ -11,6 +11,22 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
+// placedBuilding records everything needed to redraw a building each frame in
+// isometric mode, where depth-sorted rendering requires per-frame drawing rather
+// than a pre-baked batch image.
+type placedBuilding struct {
+	anchor    Coord
+	sprite    *ebiten.Image
+	footH     int // >0: combined multi-tile sprite, drawn via drawMultiBuildingToScreen
+	w, h      int // effective footprint dimensions after rotation
+}
+
+// depth returns the isometric depth of the building's front (south-east) corner.
+// Used for back-to-front draw ordering.
+func (pb placedBuilding) depth() float64 {
+	return pb.anchor.X + float64(pb.w-1) + pb.anchor.Y + float64(pb.h-1)
+}
+
 // Game is the main engine. Create it with NewGame and pass it to ebiten.RunGame.
 type Game struct {
 	world World
@@ -25,6 +41,7 @@ type Game struct {
 	rotation  int
 	start     *Coord
 
+	buildings  []placedBuilding // iso mode: sorted+redrawn each frame
 	units      []Unit
 	updatables []Updatable
 
@@ -178,17 +195,13 @@ func (g *Game) Update() error {
 					r.SetRotation(g.rotation)
 				}
 				if isometricMode {
+					pb := placedBuilding{anchor: mouseTile, w: sw, h: sh}
 					if fps, ok := obj.(FootprintSpriteGetter); ok {
-						spr, footH := fps.GetFootprintSprite()
-						drawMultiBuildingToBatch(buildingBatch, mouseTile, spr, footH)
+						pb.sprite, pb.footH = fps.GetFootprintSprite()
 					} else {
-						for dy := sh - 1; dy >= 0; dy-- {
-							for dx := sw - 1; dx >= 0; dx-- {
-								tc := Coord{mouseTile.X + float64(dx), mouseTile.Y + float64(dy)}
-								drawTileToBatch(buildingBatch, tc, obj.Sprite())
-							}
-						}
+						pb.sprite = obj.Sprite()
 					}
+					g.buildings = append(g.buildings, pb)
 				} else {
 					for dy := 0; dy < sh; dy++ {
 						for dx := 0; dx < sw; dx++ {
@@ -248,7 +261,37 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	camOp.GeoM = cam
 
 	screen.DrawImage(tileBatch, camOp)
-	screen.DrawImage(buildingBatch, camOp)
+
+	if isometricMode {
+		// Depth-sort buildings back-to-front so foreground buildings correctly
+		// occlude background ones. We sort a copy to preserve placement order.
+		sorted := make([]placedBuilding, len(g.buildings))
+		copy(sorted, g.buildings)
+		slices.SortFunc(sorted, func(a, b placedBuilding) int {
+			da, db := a.depth(), b.depth()
+			if da < db {
+				return -1
+			}
+			if da > db {
+				return 1
+			}
+			return 0
+		})
+		for _, pb := range sorted {
+			if pb.footH > 0 {
+				drawMultiBuildingToScreen(screen, pb.anchor, pb.sprite, pb.footH, cam, nil)
+			} else {
+				for dy := 0; dy < pb.h; dy++ {
+					for dx := 0; dx < pb.w; dx++ {
+						tc := Coord{pb.anchor.X + float64(dx), pb.anchor.Y + float64(dy)}
+						drawTileToScreen(screen, tc, pb.sprite, cam, nil)
+					}
+				}
+			}
+		}
+	} else {
+		screen.DrawImage(buildingBatch, camOp)
+	}
 
 	mx, my := ebiten.CursorPosition()
 	worldX, worldY := g.screenToWorld(float64(mx), float64(my))

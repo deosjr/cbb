@@ -109,7 +109,10 @@ func (c *WarehouseCart) Update(world cbb.World) {
 
 	switch c.state {
 	case wcIdle:
-		// Find the first producer with goods that is reachable by road.
+		// Route from the warehouse access point, not c.loc. The interior tile is
+		// impassable in Roads (building footprint), so we always depart from the door.
+		// This also handles the initial spawn where c.loc is still the interior tile.
+		home := c.homeCoord()
 		for _, p := range aw.producers {
 			hasGoods := false
 			for _, g := range AllGoods {
@@ -121,10 +124,11 @@ func (c *WarehouseCart) Update(world cbb.World) {
 			if !hasGoods {
 				continue
 			}
-			route, err := cbb.FindRoute(world.Roads(), c.loc, producerDest(p))
+			route, err := cbb.FindRoute(world.Roads(), home, producerDest(p))
 			if err != nil {
 				continue
 			}
+			c.loc = home // step to the door before departing
 			c.route = route
 			c.target = p
 			c.state = wcToProducer
