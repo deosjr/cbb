@@ -155,6 +155,10 @@ func (g *Game) Update() error {
 					g.previewRoute = nil
 					if err == nil {
 						for _, c := range route {
+							// Skip tiles occupied by a building footprint.
+							if t, ok := g.world.Roads().Tiles[c]; ok && !t.Passable {
+								continue
+							}
 							drawTileToBatch(tileBatch, c, roadSprite)
 							g.world.Roads().Tiles[c] = Tile{Passable: true}
 						}
@@ -196,11 +200,15 @@ func (g *Game) Update() error {
 				for dy := 0; dy < sh; dy++ {
 					for dx := 0; dx < sw; dx++ {
 						tc := Coord{mouseTile.X + float64(dx), mouseTile.Y + float64(dy)}
-						g.world.Roads().Tiles[tc] = Tile{Passable: true}
+						// Mark footprint as occupied but NOT passable: units cannot
+						// path through building interiors, only via the access point.
+						g.world.Roads().Tiles[tc] = Tile{Passable: false}
 					}
 				}
 				ap := BuildingAccessPoint(mouseTile, sw, sh, g.rotation)
 				if t, ok := g.world.Tilemap().Tiles[ap]; ok && t.Passable {
+					// Access point overrides the footprint entry if it falls inside,
+					// and is the sole road-connected entry/exit for the building.
 					g.world.Roads().Tiles[ap] = Tile{Passable: true}
 				}
 				if u, ok := obj.(Updatable); ok {

@@ -7,9 +7,20 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// buildingCoord returns the access point of a building if it implements
+// cbb.Accessible, otherwise falls back to GetLoc. Units should always route
+// to/from access points so that pathfinding stays on the road network rather
+// than trying to enter impassable building-interior tiles.
+func buildingCoord(b cbb.Building) cbb.Coord {
+	if a, ok := b.(cbb.Accessible); ok {
+		return a.AccessPoint()
+	}
+	return b.GetLoc()
+}
+
 // Gatherer walks to a task destination, triggers delivery, then returns home.
 type Gatherer struct {
-	task cbb.Task
+	task Task
 	home cbb.Building
 	loc  cbb.Coord
 	ts   time.Time
@@ -22,9 +33,10 @@ func (g *Gatherer) CanUpdate(t time.Time) bool { return t.After(g.ts) }
 
 func (g *Gatherer) Update(w cbb.World) {
 	g.ts = time.Now().Add(time.Second / 2)
+	tw := w.(*taskWorld)
 
 	if g.task == nil {
-		if t, ok := w.ClaimTask(); ok {
+		if t, ok := tw.ClaimTask(); ok {
 			g.task = t
 		}
 	}
@@ -32,29 +44,31 @@ func (g *Gatherer) Update(w cbb.World) {
 		return
 	}
 
-	route, err := cbb.FindRoute(w.Roads(), g.loc, g.task.Destination().GetLoc())
+	dest := buildingCoord(g.task.Destination())
+	route, err := cbb.FindRoute(w.Roads(), g.loc, dest)
 	if err != nil {
-		w.AddTask(g.task)
+		tw.AddTask(g.task)
 		g.task = nil
 		return
 	}
 
-	// Advance one step along the route (route is destination-first, so second-to-last is next step).
+	// Advance one step along the route.
 	if len(route) == 1 {
 		g.loc = route[0]
 	} else {
 		g.loc = route[len(route)-2]
 	}
 
-	if g.loc != g.task.Destination().GetLoc() {
+	if g.loc != dest {
 		return
 	}
 
 	// Arrived at destination.
-	if r, ok := g.task.Destination().(cbb.Receiver); ok {
-		r.Receive(g.task, w)
+	if r, ok := g.task.Destination().(Receiver); ok {
+		r.Receive(g.task, tw)
 	}
-	if g.loc == g.home.GetLoc() {
+	homeDest := buildingCoord(g.home)
+	if g.loc == homeDest {
 		// Return trip complete.
 		g.task = nil
 	} else {

@@ -15,13 +15,6 @@ type Resource interface {
 	Name() string
 }
 
-// Task represents a unit of work: deliver a resource to a building.
-type Task interface {
-	Destination() Building
-	Resource() Resource
-	Amount() int
-}
-
 // Located is any entity that occupies a tile.
 type Located interface {
 	GetLoc() Coord
@@ -32,12 +25,6 @@ type Located interface {
 type Updatable interface {
 	CanUpdate(time.Time) bool
 	Update(World)
-}
-
-// Receiver is implemented by buildings that accept deliveries from units.
-// When a unit arrives at its destination, Receive is called if the building implements this.
-type Receiver interface {
-	Receive(Task, World)
 }
 
 // Building is placed on the map and optionally spawns units when placed.
@@ -56,10 +43,7 @@ type Unit interface {
 
 // World is passed to Update and WhenPlaced, providing access to shared game state.
 // Games extend this by embedding BaseWorld in their own world struct.
-// TODO: Tasks are unused in Anno, and should be redesigned
 type World interface {
-	AddTask(Task)
-	ClaimTask() (Task, bool)
 	Roads() *TileMap
 	Tilemap() *TileMap
 }
